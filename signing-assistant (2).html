@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>签售小助手 🎀</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f5eeff;
+  min-height: 100vh;
+  color: #3d2052;
+}
+
+/* ── VIEWS ── */
+.view { display: none; min-height: 100vh; flex-direction: column; }
+.view.on { display: flex; }
+
+/* ── MAIN VIEW ── */
+#vMain { background: linear-gradient(160deg, #f0e4ff 0%, #ffe4f3 100%); }
+
+.topbar {
+  display: flex; align-items: center;
+  padding: 16px 16px 12px;
+  gap: 10px;
+}
+.topbar-title { font-size: 18px; font-weight: 700; flex: 1; }
+.gear-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: white; border: none; font-size: 20px;
+  cursor: pointer; box-shadow: 0 2px 12px rgba(180,100,255,.2);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* translation card */
+.trans-card {
+  margin: 0 14px 12px;
+  background: white; border-radius: 20px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 20px rgba(180,100,255,.12);
+}
+.trans-row { display: flex; align-items: flex-start; gap: 10px; }
+.t-flag { font-size: 20px; margin-top: 2px; flex-shrink: 0; }
+.t-body { flex: 1; min-width: 0; }
+.t-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #9b7db5; margin-bottom: 3px; }
+.t-text { font-size: 14px; line-height: 1.55; color: #3d2052; word-break: break-all; }
+.t-text.dim { color: #b8a0cc; font-style: italic; }
+.trans-divider { height: 1px; background: #edd5ff; margin: 10px 0; }
+.mic-btn {
+  width: 42px; height: 42px; border-radius: 50%; border: none; flex-shrink: 0;
+  background: linear-gradient(135deg, #ff6b9d, #c77dff);
+  color: white; font-size: 18px; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(199,125,255,.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity .2s;
+}
+.mic-btn.listening {
+  animation: mpulse 1s ease-in-out infinite;
+  background: linear-gradient(135deg, #ff2060, #8b00ff);
+}
+@keyframes mpulse {
+  0%,100% { box-shadow: 0 2px 10px rgba(255,32,96,.4); }
+  50%      { box-shadow: 0 2px 26px rgba(255,32,96,.75); }
+}
+
+/* now playing */
+.np-card {
+  margin: 0 14px 12px;
+  background: linear-gradient(135deg, #7b2fbe, #c73b8c);
+  border-radius: 20px; padding: 18px;
+  color: white;
+  box-shadow: 0 6px 28px rgba(123,47,190,.35);
+  position: relative; overflow: hidden;
+}
+.np-card::after {
+  content: ''; position: absolute;
+  top: -30px; right: -30px;
+  width: 110px; height: 110px; border-radius: 50%;
+  background: rgba(255,255,255,.07);
+}
+.np-lbl { font-size: 9px; letter-spacing: 2px; opacity: .7; margin-bottom: 5px; }
+.np-zh { font-size: 18px; font-weight: 700; line-height: 1.3; margin-bottom: 4px; }
+.np-kr { font-size: 12px; opacity: .72; line-height: 1.5; margin-bottom: 14px; }
+.np-controls { display: flex; align-items: center; gap: 12px; }
+.ctrl {
+  border: none; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity .15s;
+}
+.ctrl:active { opacity: .7; }
+.ctrl.side {
+  width: 38px; height: 38px; font-size: 16px;
+  background: rgba(255,255,255,.2); color: white;
+}
+.ctrl.main {
+  width: 54px; height: 54px; font-size: 24px;
+  background: white; color: #7b2fbe;
+  box-shadow: 0 3px 12px rgba(0,0,0,.18);
+}
+.ctrl:disabled { opacity: .3; cursor: default; }
+.np-right { flex: 1; }
+.np-info { font-size: 11px; opacity: .7; margin-bottom: 5px; }
+.np-bar-bg { height: 4px; background: rgba(255,255,255,.25); border-radius: 2px; }
+.np-bar { height: 100%; width: 0%; background: white; border-radius: 2px; transition: width .12s linear; }
+
+/* speaking dots */
+.dots { display: none; gap: 4px; align-items: center; margin-left: 4px; }
+.dots.on { display: flex; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.8); animation: db .7s ease-in-out infinite; }
+.dot:nth-child(2) { animation-delay: .15s; }
+.dot:nth-child(3) { animation-delay: .3s; }
+@keyframes db { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+
+/* queue */
+.queue { flex: 1; overflow-y: auto; padding: 0 14px 24px; }
+.q-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.q-title { font-size: 12px; font-weight: 700; color: #9b7db5; letter-spacing: 1px; }
+.q-count { font-size: 12px; color: #9b7db5; }
+
+.q-item {
+  display: flex; align-items: center; gap: 12px;
+  background: white; border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 8px;
+  border: 2px solid transparent; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  transition: border-color .15s, background .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.q-item:active { transform: scale(.985); }
+.q-item.cur { border-color: #c77dff; background: #f5eeff; }
+.q-num {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #edd5ff; color: #7b2fbe;
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.q-item.cur .q-num { background: linear-gradient(135deg,#ff6b9d,#c77dff); color: white; }
+.q-body { flex: 1; min-width: 0; }
+.q-zh { font-size: 14px; font-weight: 600; color: #3d2052; margin-bottom: 2px; }
+.q-kr { font-size: 11px; color: #9b7db5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-play { font-size: 16px; color: #c77dff; flex-shrink: 0; width: 20px; text-align: center; }
+
+/* ── SETUP VIEW ── */
+#vSetup { background: white; }
+.setup-top {
+  display: flex; align-items: center;
+  padding: 14px 16px; gap: 12px;
+  border-bottom: 1px solid #f0e5ff;
+  position: sticky; top: 0; background: white; z-index: 10;
+}
+.back-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #7b2fbe; padding: 0 4px; }
+.setup-top h2 { font-size: 17px; font-weight: 700; flex: 1; }
+.done-btn {
+  background: linear-gradient(90deg,#ff6b9d,#c77dff);
+  color: white; border: none; padding: 9px 20px;
+  border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+
+.setup-body { padding: 16px 16px 40px; }
+
+.tip {
+  border-radius: 12px; padding: 11px 14px;
+  font-size: 13px; line-height: 1.6; margin-bottom: 14px;
+}
+.tip.green { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
+.tip.yellow { background: #fff8e1; border: 1px solid #ffd54f; color: #795548; }
+
+.sec-lbl { font-size: 12px; font-weight: 700; color: #9b7db5; letter-spacing: 1px; margin-bottom: 10px; margin-top: 6px; }
+
+/* voice picker */
+.voice-box {
+  background: #f5eeff; border: 1.5px solid #edd5ff;
+  border-radius: 14px; padding: 14px; margin-bottom: 16px;
+}
+.vb-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.vb-row:last-child { margin-bottom: 0; }
+.v-select {
+  flex: 1; border: 1.5px solid #edd5ff; border-radius: 10px;
+  padding: 9px 12px; font-size: 14px; background: white;
+  color: #3d2052; outline: none; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+}
+.v-test {
+  padding: 9px 16px; background: linear-gradient(90deg,#ff6b9d,#c77dff);
+  color: white; border: none; border-radius: 10px;
+  font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.spd-row { display: flex; align-items: center; gap: 10px; }
+.spd-lbl { font-size: 13px; white-space: nowrap; color: #3d2052; }
+input[type=range] { flex: 1; accent-color: #c77dff; }
+.spd-val { font-size: 13px; font-weight: 700; color: #7b2fbe; width: 34px; text-align: right; }
+
+/* script cards */
+.sc-card {
+  background: #fafafa; border: 1.5px solid #f0e5ff;
+  border-radius: 14px; padding: 13px 14px; margin-bottom: 10px;
+}
+.sc-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.sc-num {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+  background: linear-gradient(135deg,#ff6b9d,#c77dff);
+  color: white; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.sc-texts { flex: 1; }
+.sc-kr { font-size: 13px; color: #3d2052; line-height: 1.55; margin-bottom: 3px; }
+.sc-zh { font-size: 12px; color: #9b7db5; line-height: 1.4; }
+.sc-play {
+  padding: 7px 16px; border: none; border-radius: 8px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  background: #edd5ff; color: #7b2fbe;
+  transition: background .2s, color .2s;
+}
+.sc-play:hover, .sc-play.playing { background: linear-gradient(90deg,#ff6b9d,#c77dff); color: white; }
+
+/* custom */
+.add-btn {
+  width: 100%; padding: 13px;
+  border: 2px dashed #edd5ff; border-radius: 14px;
+  background: none; color: #c77dff;
+  font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px;
+  transition: all .2s;
+}
+.add-btn:hover { border-color: #c77dff; background: #f5eeff; }
+.cu-card {
+  background: #fafafa; border: 1.5px solid #f0e5ff;
+  border-radius: 14px; padding: 13px 14px; margin-bottom: 10px;
+}
+.cu-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cu-num { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg,#ff6b9d,#c77dff); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cu-del { background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer; margin-left: auto; }
+.cu-del:hover { color: #ff6b9d; }
+.cu-ta {
+  width: 100%; border: 1.5px solid #edd5ff; border-radius: 10px;
+  padding: 9px 12px; font-size: 13px; background: white;
+  color: #3d2052; outline: none; resize: none;
+  font-family: inherit; margin-bottom: 7px;
+  transition: border-color .2s;
+}
+.cu-ta:focus { border-color: #c77dff; }
+.cu-ta::placeholder { color: #b8a0cc; }
+
+#toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: rgba(50,10,80,.88); color: white;
+  padding: 10px 22px; border-radius: 22px; font-size: 13px;
+  z-index: 9999; opacity: 0; transition: opacity .3s;
+  white-space: nowrap; pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ════════ MAIN VIEW ════════ -->
+<div class="view on" id="vMain">
+  <div class="topbar">
+    <span style="font-size:22px">🎀</span>
+    <span class="topbar-title">签售现场</span>
+    <button class="gear-btn" id="gearBtn">⚙️</button>
+  </div>
+
+  <!-- live translation -->
+  <div class="trans-card">
+    <div class="trans-row">
+      <span class="t-flag">🇰🇷</span>
+      <div class="t-body">
+        <div class="t-label">韩文识别</div>
+        <div class="t-text dim" id="krText">点击麦克风开始收听爱豆说话...</div>
+      </div>
+      <button class="mic-btn" id="micBtn">🎤</button>
+    </div>
+    <div class="trans-divider"></div>
+    <div class="trans-row">
+      <span class="t-flag">🇨🇳</span>
+      <div class="t-body">
+        <div class="t-label">中文翻译</div>
+        <div class="t-text dim" id="zhText">翻译结果显示在这里</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- now playing -->
+  <div class="np-card">
+    <div class="np-lbl">NOW PLAYING</div>
+    <div class="np-zh" id="npZh">点击下方台词开始朗读</div>
+    <div class="np-kr" id="npKr">请点击右上角 ⚙️ 可试听每一条</div>
+    <div class="np-controls">
+      <button class="ctrl side" id="btnPrev">⏮</button>
+      <button class="ctrl main" id="btnPlay">▶</button>
+      <button class="ctrl side" id="btnNext">⏭</button>
+      <div class="np-right">
+        <div class="np-info" id="npInfo">共 12 条</div>
+        <div class="np-bar-bg"><div class="np-bar" id="npBar"></div></div>
+      </div>
+      <div class="dots" id="dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- queue -->
+  <div class="queue">
+    <div class="q-head">
+      <div class="q-title">📋 播放列表</div>
+      <div class="q-count" id="qCount">12 条</div>
+    </div>
+    <div id="qList"></div>
+  </div>
+</div>
+
+<!-- ════════ SETUP VIEW ════════ -->
+<div class="view" id="vSetup">
+  <div class="setup-top">
+    <button class="back-btn" id="backBtn">←</button>
+    <h2>台词 &amp; 语音设置</h2>
+    <button class="done-btn" id="doneBtn">完成 ✓</button>
+  </div>
+  <div class="setup-body">
+    <div class="tip green">
+      ✅ 使用<strong>设备自带语音引擎</strong>朗读韩文，无需网络，无需 API Key，免费！
+    </div>
+    <div class="tip yellow">
+      📱 手机用户：先在系统「设置」里下载韩语 TTS 语音包，效果更自然。<br>
+      💻 电脑用户：macOS / Windows 自带韩语语音，直接可用。
+    </div>
+
+    <div class="sec-lbl">🔊 语音选择</div>
+    <div class="voice-box">
+      <div class="vb-row">
+        <select class="v-select" id="vSelect"></select>
+        <button class="v-test" id="vTest">▶ 试听</button>
+      </div>
+      <div class="spd-row">
+        <span class="spd-lbl">语速</span>
+        <input type="range" id="spdRange" min="0.5" max="1.5" step="0.05" value="0.88">
+        <span class="spd-val" id="spdVal">0.88</span>
+      </div>
+    </div>
+
+    <div class="sec-lbl">✨ 你的签售台词（共 12 条）</div>
+    <div id="scList"></div>
+
+    <div class="sec-lbl" style="margin-top:4px">➕ 自定义台词</div>
+    <div id="cuList"></div>
+    <button class="add-btn" id="addBtn">+ 添加自定义台词</button>
+  </div>
+</div>
+
+<script>
+(function () {
+"use strict";
+
+// ── DATA ──
+var SCRIPTS = [
+  { kr: "SOEE야~ 나는 중국의 하이린 언니야", zh: "SOEE呀～我是中国的海淋姐姐" },
+  { kr: "우리 약속 포즈 정하자! 이건 H의 반쪽이야~", zh: "约定pose吧！这个是"H"的一半" },
+  { kr: "오늘은 단오절이라서 언니가 중국 전통 의상 입고 왔는데 어때?", zh: "端午节，姐姐穿了中国传统服饰，怎么样？" },
+  { kr: "이번 단발 진짜 레전드였어… 처음 봤을 때 언니가 심장 멎는 줄 알았다니까?!", zh: "这次短发真是Legend…姐姐第一次看到心脏都要停止了！" },
+  { kr: "신곡도 완전 대박이고, 우리 소이가 얼마나 열심히 준비했는지 다 느껴져! 고생했어 우리 아기!", zh: "新歌超级好听，能感觉到你准备得很努力！辛苦啦我的宝宝！" },
+  { kr: "언니도 지난 1년 동안 진짜 열심히 살았어! 언니가 소이 중국 팬 계정 마음 담아서 계속 운영하고 있는 거 기억하지? 벌써 팔로워가 400명 돌파 직전이야!", zh: "姐姐这一年也努力地生活了哦。你记得姐姐一直在用心运营你的中国粉丝账号吧？现在粉丝快突破400人啦！" },
+  { kr: "이 계정 덕분에 언니가 넷이즈뮤직에서 K-POP 홍보 담당 인턴까지 하게 됐어.", zh: "这个账号帮助我成为了网易云音乐负责KPOP宣传的实习生" },
+  { kr: "그리고 USPEER 넷이즈뮤직 영상도 언니가 제일 먼저 봤어! 너무 행복해서 일에 집중을 못 하겠더라구.", zh: "USPEER网易云的视频姐姐也是第一个看到的，太幸福了都没法专心工作了" },
+  { kr: "언니가 요즘 일 때문에 너무 지쳤는데, 여자친구 버전이랑 여동생 버전으로 위로의 말 한마디랑 포즈 하나씩만 해줄 수 있어?", zh: "姐姐最近工作太累了，分别用女朋友和妹妹的方式说一句话和一个动作安慰我吧！" },
+  { kr: "여자친구 버전", zh: "（举牌提示）女朋友版本" },
+  { kr: "여동생 버전", zh: "（举牌提示）妹妹版本" },
+  { kr: "밥 잘 챙겨 먹고, 잠도 잘 자야 해! 언니는 앞으로도 계속 응원할게! 진짜 많이 사랑해! 다음 주에 또 만나자~", zh: "要好好吃饭好好睡觉哦。姐姐会一直应援的！最爱你！下周见！" }
+];
+
+var customs = [];
+var curIdx = 0;
+var speaking = false;
+var rate = 0.88;
+var voices = [];
+var selVoice = null;
+var barTimer = null;
+var barStart = 0;
+var barDur = 1000;
+var recognition = null;
+var listening = false;
+var xlTimer = null;
+
+// ── ELEMENTS ──
+var $ = function(id){ return document.getElementById(id); };
+var vMain = $('vMain'), vSetup = $('vSetup');
+var gearBtn = $('gearBtn'), backBtn = $('backBtn'), doneBtn = $('doneBtn');
+var micBtn = $('micBtn');
+var krText = $('krText'), zhText = $('zhText');
+var npZh = $('npZh'), npKr = $('npKr'), npInfo = $('npInfo'), npBar = $('npBar');
+var btnPrev = $('btnPrev'), btnPlay = $('btnPlay'), btnNext = $('btnNext');
+var dots = $('dots');
+var qList = $('qList'), qCount = $('qCount');
+var scList = $('scList'), cuList = $('cuList'), addBtn = $('addBtn');
+var vSelect = $('vSelect'), vTest = $('vTest');
+var spdRange = $('spdRange'), spdVal = $('spdVal');
+
+// ── VOICE INIT ──
+function loadVoices() {
+  voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  var ko = voices.filter(function(v){ return v.lang && v.lang.toLowerCase().indexOf('ko') === 0; });
+  vSelect.innerHTML = '';
+  if (ko.length === 0) {
+    var o = document.createElement('option');
+    o.textContent = '⚠️ 未找到韩语语音，请检查系统设置';
+    vSelect.appendChild(o);
+    return;
+  }
+  ko.forEach(function(v, i) {
+    var o = document.createElement('option');
+    o.value = i;
+    o.textContent = v.name + ' (' + v.lang + ')';
+    vSelect.appendChild(o);
+  });
+  selVoice = ko[0];
+}
+
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+}
+
+vSelect.addEventListener('change', function() {
+  var ko = voices.filter(function(v){ return v.lang && v.lang.toLowerCase().indexOf('ko') === 0; });
+  selVoice = ko[parseInt(vSelect.value)] || null;
+});
+
+spdRange.addEventListener('input', function() {
+  rate = parseFloat(spdRange.value);
+  spdVal.textContent = rate.toFixed(2);
+});
+
+vTest.addEventListener('click', function() {
+  speak("안녕하세요! 저는 중국에서 온 하이린 언니예요~", true);
+});
+
+// ── SPEAK ──
+function speak(text, preview) {
+  if (!window.speechSynthesis) { toast('您的浏览器不支持语音合成，请用 Chrome 或 Safari'); return; }
+  window.speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ko-KR';
+  u.rate = rate;
+  if (selVoice) u.voice = selVoice;
+  if (!preview) {
+    setSpeaking(true);
+    barStart = Date.now();
+    barDur = Math.max(800, (text.length / 3.5) * 1000 / rate);
+    clearInterval(barTimer);
+    barTimer = setInterval(function(){
+      var p = Math.min(100, ((Date.now() - barStart) / barDur) * 100);
+      npBar.style.width = p + '%';
+    }, 80);
+    u.onend = function() {
+      setSpeaking(false);
+      clearInterval(barTimer);
+      npBar.style.width = '100%';
+      setTimeout(function(){
+        npBar.style.width = '0%';
+        var all = allTracks();
+        if (curIdx < all.length - 1) { curIdx++; updateNP(); renderQueue(); speak(all[curIdx].kr, false); }
+      }, 700);
+    };
+    u.onerror = function() { setSpeaking(false); clearInterval(barTimer); };
+  }
+  window.speechSynthesis.speak(u);
+}
+
+function setSpeaking(val) {
+  speaking = val;
+  btnPlay.textContent = val ? '⏸' : '▶';
+  if (val) dots.classList.add('on'); else dots.classList.remove('on');
+}
+
+// ── ALL TRACKS ──
+function allTracks() {
+  var arr = SCRIPTS.slice();
+  customs.forEach(function(c){ if (c.kr.trim()) arr.push({ kr: c.kr, zh: c.zh }); });
+  return arr;
+}
+
+// ── QUEUE RENDER ──
+function renderQueue() {
+  var all = allTracks();
+  qCount.textContent = all.length + ' 条';
+  qList.innerHTML = '';
+  all.forEach(function(t, i) {
+    var div = document.createElement('div');
+    div.className = 'q-item' + (i === curIdx ? ' cur' : '');
+    div.innerHTML =
+      '<div class="q-num">' + (i+1) + '</div>' +
+      '<div class="q-body">' +
+        '<div class="q-zh">' + (t.zh || '（未填中文）') + '</div>' +
+        '<div class="q-kr">' + t.kr + '</div>' +
+      '</div>' +
+      '<div class="q-play">' + (i === curIdx ? (speaking ? '🔊' : '▶️') : '') + '</div>';
+    div.addEventListener('click', function() { jumpTo(i); });
+    qList.appendChild(div);
+  });
+  updateNP();
+}
+
+function updateNP() {
+  var all = allTracks();
+  var t = all[curIdx];
+  if (t) {
+    npZh.textContent = t.zh || '（未填中文）';
+    npKr.textContent = t.kr;
+    npInfo.textContent = '第 ' + (curIdx+1) + ' 条 / 共 ' + all.length + ' 条';
+  }
+  btnPrev.disabled = curIdx === 0;
+  btnNext.disabled = curIdx >= all.length - 1;
+  btnPlay.textContent = speaking ? '⏸' : '▶';
+}
+
+function jumpTo(i) {
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  setSpeaking(false);
+  clearInterval(barTimer);
+  npBar.style.width = '0%';
+  curIdx = i;
+  renderQueue();
+  var el = document.getElementById('qi' + i);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(function(){ speak(allTracks()[i].kr, false); }, 80);
+}
+
+btnPlay.addEventListener('click', function() {
+  var all = allTracks();
+  if (!all.length) return;
+  if (speaking) {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    setSpeaking(false);
+    clearInterval(barTimer);
+  } else {
+    speak(all[curIdx].kr, false);
+  }
+});
+
+btnPrev.addEventListener('click', function() {
+  if (curIdx > 0) jumpTo(curIdx - 1);
+});
+btnNext.addEventListener('click', function() {
+  var all = allTracks();
+  if (curIdx < all.length - 1) jumpTo(curIdx + 1);
+});
+
+// ── VIEW SWITCH ──
+gearBtn.addEventListener('click', function() {
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  setSpeaking(false);
+  vMain.classList.remove('on');
+  vSetup.classList.add('on');
+  renderSetup();
+});
+function goMain() {
+  vSetup.classList.remove('on');
+  vMain.classList.add('on');
+  renderQueue();
+}
+backBtn.addEventListener('click', goMain);
+doneBtn.addEventListener('click', goMain);
+
+// ── SETUP RENDER ──
+function renderSetup() {
+  loadVoices();
+  scList.innerHTML = '';
+  SCRIPTS.forEach(function(s, i) {
+    var div = document.createElement('div');
+    div.className = 'sc-card';
+    div.innerHTML =
+      '<div class="sc-head">' +
+        '<div class="sc-num">' + (i+1) + '</div>' +
+        '<div class="sc-texts">' +
+          '<div class="sc-kr">' + s.kr + '</div>' +
+          '<div class="sc-zh">' + s.zh + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="sc-play" data-i="' + i + '">▶ 试听</button>';
+    div.querySelector('.sc-play').addEventListener('click', function() {
+      speak(s.kr, true);
+      toast('试听中...');
+    });
+    scList.appendChild(div);
+  });
+  renderCustoms();
+}
+
+function renderCustoms() {
+  cuList.innerHTML = '';
+  customs.forEach(function(c, i) {
+    var div = document.createElement('div');
+    div.className = 'cu-card';
+    div.innerHTML =
+      '<div class="cu-top">' +
+        '<div class="cu-num">自' + (i+1) + '</div>' +
+        '<button class="cu-del" data-i="' + i + '">✕</button>' +
+      '</div>' +
+      '<textarea class="cu-ta" rows="2" placeholder="韩文台词...">' + (c.kr||'') + '</textarea>' +
+      '<textarea class="cu-ta" rows="1" placeholder="中文意思...">' + (c.zh||'') + '</textarea>' +
+      '<button class="sc-play" style="margin-top:4px">▶ 试听</button>';
+    var tas = div.querySelectorAll('textarea');
+    tas[0].addEventListener('input', function(){ customs[i].kr = this.value; });
+    tas[1].addEventListener('input', function(){ customs[i].zh = this.value; });
+    div.querySelector('.cu-del').addEventListener('click', function() {
+      customs.splice(i, 1); renderCustoms();
+    });
+    div.querySelector('.sc-play').addEventListener('click', function() {
+      if (c.kr.trim()) { speak(c.kr, true); toast('试听中...'); }
+      else toast('请先填写韩文台词');
+    });
+    cuList.appendChild(div);
+  });
+}
+
+addBtn.addEventListener('click', function() {
+  customs.push({ kr: '', zh: '' });
+  renderCustoms();
+  cuList.lastChild && cuList.lastChild.querySelector('textarea').focus();
+});
+
+// ── SPEECH RECOGNITION ──
+micBtn.addEventListener('click', function() {
+  if (listening) {
+    recognition && recognition.stop();
+    setListening(false);
+  } else {
+    startListen();
+  }
+});
+
+function startListen() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    krText.textContent = '⚠️ 当前浏览器不支持语音识别，请用 Chrome';
+    krText.className = 't-text dim';
+    return;
+  }
+  if (!recognition) {
+    recognition = new SR();
+    recognition.lang = 'ko-KR';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    var finalBuf = '';
+    recognition.onresult = function(e) {
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalBuf += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      var display = (finalBuf + interim).trim();
+      if (display) {
+        krText.textContent = display;
+        krText.className = 't-text';
+        clearTimeout(xlTimer);
+        if (finalBuf.trim()) {
+          var toXl = finalBuf.trim();
+          xlTimer = setTimeout(function(){ doTranslate(toXl); finalBuf = ''; }, 700);
+        }
+      }
+    };
+    recognition.onerror = function(e) {
+      krText.textContent = e.error === 'not-allowed' ? '⚠️ 请允许麦克风权限后重试' : '识别出错：' + e.error;
+      krText.className = 't-text dim';
+      setListening(false);
+    };
+    recognition.onend = function() { if (listening) { try { recognition.start(); } catch(e){} } };
+  }
+  try { recognition.start(); setListening(true); } catch(e) { setListening(true); }
+}
+
+function setListening(val) {
+  listening = val;
+  micBtn.textContent = val ? '⏹' : '🎤';
+  if (val) micBtn.classList.add('listening'); else micBtn.classList.remove('listening');
+  if (!val) { krText.textContent = '点击麦克风开始收听爱豆说话...'; krText.className = 't-text dim'; }
+}
+
+async function doTranslate(text) {
+  zhText.textContent = '翻译中...'; zhText.className = 't-text dim';
+  try {
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 1000,
+        messages: [{ role: 'user', content: '将以下韩文翻译成自然流畅的中文，只输出翻译结果：\n\n' + text }]
+      })
+    });
+    var data = await res.json();
+    var result = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '翻译失败';
+    zhText.textContent = result;
+    zhText.className = 't-text';
+  } catch(e) {
+    zhText.textContent = '翻译出错（需要网络连接）';
+    zhText.className = 't-text dim';
+  }
+}
+
+// ── TOAST ──
+var toastEl = $('toast'), toastTimer;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.style.opacity = '0'; }, 2000);
+}
+
+// ── INIT ──
+renderQueue();
+
+})();
+</script>
+</body>
+</html>
